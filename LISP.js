@@ -1,6 +1,3 @@
-var repl = require('repl')
-var readline = require('readline')
-
 var environment = {
   '+' : (args) => args.reduce((sum,currentValue) => sum + currentValue),
 
@@ -16,6 +13,8 @@ var environment = {
 
   '>=' : (args) => args[0] >= args[1] ? true : false,
 
+  '<=' : (args) => args[0] <= args[1] ? true : false,
+
   '>' : (args) => args[0] >= args[1] ? true : false,
 
   '=' : (args) => args[0] === args[1] ? true : false,
@@ -24,183 +23,226 @@ var environment = {
 
   'false' : false,
 
-  'pi' : 3.14
+  'pi' : 3.14,
+
+  'outer' : null
 }
 
-var envts = [environment]
+var envts = [environment] //Array of environments --> Left to Right
+                          //Innermost Environment at left
 
-function throwError( data ){
+function throwError( data ){ //Logging all error scenarios and terminating
   console.log(data)
   process.exit()
 }
 
-
 function parseEvaluate( data , envt = environment){
   var value
-  console.log( data[0] ,'in Parsevalue')
   if( data[0] !== '(' ){
-    if( data[0] in envt && typeof envt[data[0]] !== 'function' ) return envt[data.shift()] //Variable reference
+    if((variable = findTheVariable(data[0], envts[0]))){ // Variable reference
+      data.shift()
+      return variable
+    }
     else if( Number(data[0]) === Number(data[0])) return Number(data.shift()) //Number
     throwError("Syntax Error! : '" + data[0] + "' is Invalid")
   }
-  /*if( data[1] === '(' ){
-    console.log("Syntax error at the opening of the expression")
-    process.exit()
-  }
-  */
-  data.shift()
+  data.shift() //Removing ' ( '
   while( data[0] !== ')' ){
-    console.log(data,'in loop')
-  if( data[0] === 'define' ){
-    data.shift()
-    let property = data[0]
-    data.shift()
-    console.log(data, 'value of data for value in define')
-    //value = parseEvaluate(data, envt)
-    envt[property] = value = parseEvaluate(data, envt)
-    console.log(property + " : " + value + " Updated to the global envt!")
-    console.log(data,'in define')
-    //data.shift()
-    console.log(data,'in define')
-  }
-  else if( data[0] === 'quote'){
-    data.shift()
-    if( data[0] !== '(' && data[0] !== ')' ) return data.shift()
-    else if( data[0] === ')' ) throwError("Invalid Quote")
+    if( data[0] === 'define' ){
+      data.shift()
+      let property = data[0]
+      data.shift()
+    if( data[1] !== 'lambda') envt[property] = value = parseEvaluate(data, envt)
     else{
-      console.log(data,'data coming in else quote')
-      let count = 1, asItIs = []
-      asItIs.push(data[0]); data.shift()
-      while( count > 0 && data !== [] ){
-        if( data[0] === ')' ){
-          count--
-          asItIs.push(data[0])
-          data.shift()
-        }
-        else if( data[0] === '(' ){
-          count++
-          asItIs.push(data[0])
-          data.shift()
-        }
-        else{
-          asItIs.push(data[0])
-          data.shift()
-        }
-      }//end of quote while
-      //console.log(asItIs)
-      if( count === 0 ) value = asItIs.join(" ")
-      else throwError("Invalid Quote Syntax")
+      data.shift()
+      envt[property] = value = lambdaParser( data, envt)
+      }
+    console.log(property + " : " + value + " Updated to the global envt!")
     }
-  }
-  else if( data[0] === 'set!' ){
-    data.shift()
-    let variable = data[0]
-    data.shift()
-    if( variable in envt ){
-      envt[variable] = parseEvaluate(data, envt)
-      console.log("The global variable " + variable + " is now : " + envt[variable])
-      //return 'unspecified'   //This is because the result of set! expression is unspecified
-      console.log(data)
+    else if( data[0] === 'quote'){
+      data.shift()
+      if( data[0] !== '(' && data[0] !== ')' ) return data.shift()
+      else if( data[0] === ')' ) throwError("Invalid Quote")
+      else value = getLiteralExpression( data )
     }
-    else throwError("The variable " + variable + " is not a global variable")
-  }
-  else if( data[0] === 'lambda' ) value = lambdaParser( data )
-  else if( data[0] === 'begin' ) data.shift()
-  else if( data[0] === '('){
-    value = parseEvaluate( data , envt)
-    //data.shift()
-  }
-  else if( data[0] === 'if' ){
-    data.shift()
-    if( parseEvaluate(data, envt) === true ) value = parseEvaluate(data, envt) //evaluate this
-    else value = parseEvaluate(data) // in case of false, evaluate this
-  }
-  else if( typeof envt[data[0]] === 'function' ){
-    let args = [], fn = envt[data[0]]
-    data.shift()
-    while( data[0] !== ')' ){
-      args.push(parseEvaluate(data, envt))
-    }//end of inner while
-    data.shift()
+    else if( data[0] === 'set!' ){ //Should rework
+      data.shift()
+      let variable = data[0]
+      data.shift()
+      if( variable in envt ){
+        envt[variable] = parseEvaluate(data, envt)
+        console.log("The global variable " + variable + " is now : " + envt[variable])
+      }
+      else throwError("The variable " + variable + " is not a global variable")
+    }
 
-    value = fn(args)
-    console.log(value, 'value after function')
-    console.log(data)
-    return fn(args)
-  }
-  else if( typeof envt[data[0]] === 'string' ){
-    let expression = envt[data[0]]
-    value =
-    //console.log(expression)
-    //console.log(Object.keys(envt).length)
-    //console.log(Object.keys(envts[0]).length)
-    //data.shift()
-    //console.log(data, 'data for lambda')
-  }
-  else throwError("Err! Error in the Expression, '" + data[0] + "' not found")
-}//end of outer while
-  data.shift();
-  //if( data.length === 0 )
-  return value
+    else if( data[0] === 'lambda' ){
+      value = lambdaParser( data, envt) //for direct evaluation
+      data.shift()
+      let noOfParameters = Object.keys(envts[0].parameters).length
+      let params = Object.keys(envts[0].parameters)
+      let paramIndex = 0
+      while( noOfParameters !== 0 ){
+        envts[0].parameters[params[paramIndex++]] = parseEvaluate(data)
+        noOfParameters--
+      }
+      value = parseEvaluate(getTokens(value), envts[0])
+      data.push(')')
+    }
 
+    else if( data[0] === 'begin' ) data.shift()
+    else if( data[0] === '('){
+      value = parseEvaluate( data , envt)
+      //data.shift()
+    }
+    else if( data[0] === 'if' ){
+      data.shift()
+      if( parseEvaluate(data, envt) === true ){
+        value = parseEvaluate(data, envt)
+        break
+      }
+      else{
+        parseEvaluate(data, envt)
+        if( data[0] === 'oops' )  break
+        value = parseEvaluate(data, envt)
+        break
+      }
+    }
+  //find the function
+    else if( typeof (findTheFunction(data[0], envt)) === 'function' ){
+      let fn = findTheFunction(data[0], envt)
+      let args = []
+      data.shift()
+      while( data[0] !== ')' ){
+        args.push(parseEvaluate(data, envt))
+      }
+      data.shift()
+      value = fn(args)
+      return ( fn(args) )
+    }
+    else if( typeof (findTheBody(data[0], envt)) === 'string' ){
+      let expression = findTheBody(data[0], envt)
+      data.shift()
+      let noOfParameters = Object.keys(envts[0].parameters).length
+      let params = Object.keys(envts[0].parameters)
+      let paramIndex = 0
+      while( noOfParameters !== 0 ){
+        envts[0].parameters[params[paramIndex++]] = parseEvaluate(data)
+        noOfParameters--
+      }
+      value = parseEvaluate(getTokens(expression), envts[0])
+      }
+      else throwError("Err! Error in the Expression, '" + data[0] + "' not found")
+  }//end of outer while
+    data.shift();
+    return value
 }
 
-function lambdaParser( data ){
+function findTheFunction( data, envt ){
+  if( data in envt && typeof envt[data] === 'function' ) return envt[data]
+  while( envt['outer'] !== null ){
+    envt = envt['outer']
+    if( data in envt && typeof envt[data] === 'function' ) return envt[data]
+  }
+  return false
+}
+
+function findTheBody( data, envt ){
+  if( data in envt && typeof envt[data] === 'string' ) return envt[data]
+  while( envt['outer'] !== null ){
+    envt = envt['outer']
+    if( data in envt && typeof envt[data] === 'string' ) return envt[data]
+  }
+  return false
+}
+
+function findTheVariable( data, envt ){
+  if( data in envt && typeof envt[data] !== 'function') return envt[data]
+  else if( envt['parameters'] ){
+    if( data in envt['parameters'])
+    return envt['parameters'][data]
+  }
+  while( envt['outer'] !== null ){
+    envt = envt['outer']
+    if( data in envt && typeof envt[data] !== 'function') return envt[data]
+    else if( envt['parameters'] ){
+      if( data in envt['parameters'])
+      return envt['parameters'][data]
+    }
+  }
+  return false
+}
+
+function getLiteralExpression(data){
+  let count = 1, asItIs = []
+  asItIs.push(data[0]); data.shift()
+  while( count > 0 && data !== [] ){
+    if( data[0] === ')' ){
+      count--
+      asItIs.push(data[0])
+      data.shift()
+    }
+    else if( data[0] === '(' ){
+      count++
+      asItIs.push(data[0])
+      data.shift()
+    }
+    else{
+      asItIs.push(data[0])
+      data.shift()
+    }
+  }
+  if( count === 0 ) return (asItIs.join(" "))
+  else throwError("Invalid Syntax at : " + asItIs.join(" "))
+}
+
+function lambdaParser( data, envt){
   data.shift()
   //Forming the scope w.r.t the arguments
   if( data[0] !== '(' ) throwError("Syntax error w.r.t argumental appearance in lambda ")
   data.shift()
   let inner_env = {}
-  console.log(inner_env, 'inner env before using')
+  let parameters = {}
   while( data[0] !== ')' && data.length !== 0 ){
-    inner_env[data[0]] = null
+    parameters[data[0]] = null
     data.shift()
   }
+  inner_env['parameters'] = parameters
   if( data.length === 0 ) throwError("Error w.r.t lambda's arguments - No body found")
   data.shift();
   console.log("Arguments are scoped!")
   envts.unshift(inner_env)
-  console.log(inner_env, 'after using')
-
   if(data[0] !== '(' ) throwError("Error - Improper body of lambda ")
-
-  let lambdaExpression = [], count = 1;
-  lambdaExpression.push(data[0])
-  data.shift()
-  console.log(data, 'data before loop lambda')
-  while( count > 0 && data !== [] ){
-    if( data[0] === ')' ){
-      count--
-      lambdaExpression.push(data[0])
-      data.shift()
-    }
-    else if( data[0] === '(' ){
-      count++
-      lambdaExpression.push(data[0])
-      data.shift()
-    }
-    else{
-      lambdaExpression.push(data[0])
-      data.shift()
-    }
-  } //end of while
-  console.log(lambdaExpression,'exression lambda')
-  console.log(data,'data after expression')
-  if( count === 0 )
-    return lambdaExpression.join(" ")
-  throwError("Improper Body Syntax")
+    inner_env['body'] = getLiteralExpression( data, envt )
+    inner_env['outer'] = envt
+    return inner_env['body']
 }
 
 const getTokens = data => data.replace(/[(]/g, "( ").replace(/[)]/g, " )").split(/[" "]+/)
 
-console.log(parseEvaluate(getTokens("((define circle-area (lambda (r) (* pi (* r r)))) (circle-area 10))")))
-//console.log(parseEvaluate(getTokens("(begin (define r 10) (* pi (* r r)))")))
-//console.log(parseEvaluate(getTokens('}')))
-/*var replServer = repl.start({
-  prompt : "Lisp-Interpreter : "
-});
-
-function sendToParseEvaluate( cmd ){
-  data = `${cmd}`
-  parseEvaluate(data)
-}*/
+console.log("Test case : 1 ")
+console.log(parseEvaluate(getTokens("(+ 1 10)"))) //1
+console.log()
+console.log("Test case : 2 ")
+console.log(parseEvaluate(getTokens("(+ 4 (* 5 6))"))) //2
+console.log()
+console.log("Test case : 3 ")
+console.log(parseEvaluate(getTokens("(begin (define r 10) (* pi (* r r)))"))) //3
+console.log()
+console.log("Test case : 4 ")
+console.log(parseEvaluate(getTokens("(if (> (* 11 11) 120) (* 7 6) (+ 1 1))"))) //4
+console.log()
+console.log("Test case : 5 ")
+console.log(parseEvaluate(getTokens("((lambda (x) (+ x x)) 4)"))) //5
+console.log()
+console.log("Test case : 6 ")
+console.log(parseEvaluate(getTokens("((lambda (x y z) (+ x (* y z))) 4 5 6)"))) //6
+console.log()
+console.log("Test case : 7 ")
+console.log(parseEvaluate(getTokens("(define circle-area (lambda (r) (* pi (* r r)) circle-area 10)"))) //7
+console.log()
+console.log("Test case : 8 ")
+console.log(parseEvaluate(getTokens("(define fact (lambda (n) (if (<= n 1) 1 (* n (fact (- n 1)))) fact 10)"))) //8
+console.log()
+console.log("Test case : 9 ")
+console.log(parseEvaluate(getTokens("(define compose (lambda (f g) (lambda (x) (f (g x)))))"))) //9

@@ -56,6 +56,7 @@ function parseEvaluate( data , envt = environment){
     else{
       data.shift()
       envt[property] = value = lambdaParser( data, envt)
+      data.shift()
       }
     console.log(property + " : " + value + " Updated to the global envt!")
     }
@@ -239,10 +240,10 @@ console.log("Test case : 6 ")
 console.log(parseEvaluate(getTokens("((lambda (x y z) (+ x (* y z))) 4 5 6)"))) //6
 console.log()
 console.log("Test case : 7 ")
-console.log(parseEvaluate(getTokens("(define circle-area (lambda (r) (* pi (* r r)) circle-area 10)"))) //7
+console.log(parseEvaluate(getTokens("(define circle-area (lambda (r) (* pi (* r r))) circle-area 10)"))) //7
 console.log()
 console.log("Test case : 8 ")
-console.log(parseEvaluate(getTokens("(define fact (lambda (n) (if (<= n 1) 1 (* n (fact (- n 1)))) fact 10)"))) //8
+console.log(parseEvaluate(getTokens("(define fact (lambda (n) (if (<= n 1) 1 (* n (fact (- n 1))))) fact 10)"))) //8
 console.log()
 console.log("Test case : 9 ")
 console.log(parseEvaluate(getTokens("(define compose (lambda (f g) (lambda (x) (f (g x)))))"))) //9
